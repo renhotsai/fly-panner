@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import SearchForm from "@/components/SearchForm";
-import ResultsTable from "@/components/ResultsTable";
+import ResultsTable, { SkeletonCards } from "@/components/ResultsTable";
 import type { FlightOffer, SearchParams } from "@/lib/types";
 
 interface SearchState {
@@ -41,57 +41,71 @@ export default function HomePage() {
     }
   }
 
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
-      {/* Header */}
-      <header className="mb-8 text-center">
-        <div className="mb-2 inline-flex items-center gap-2 text-4xl">
-          <span>✈️</span>
-          <h1 className="font-extrabold tracking-tight text-slate-800">
-            fly-panner
-          </h1>
-        </div>
-        <p className="text-slate-500">
-          Find the cheapest flights within a flexible departure and return date
-          range.
-        </p>
-      </header>
+  const hasResults = result && !result.error;
 
-      {/* Search form */}
-      <div className="mb-8">
+  return (
+    <div className="min-h-screen">
+      {/* Hero / header band */}
+      <div className="bg-gradient-to-br from-sky-600 via-sky-500 to-indigo-500 px-4 pb-16 pt-12">
+        <div className="mx-auto max-w-4xl text-center">
+          <div className="mb-2 flex items-center justify-center gap-3">
+            <span className="text-3xl">✈️</span>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">
+              fly-panner
+            </h1>
+          </div>
+          <p className="text-sky-100">
+            Find the cheapest flights across a flexible range of dates.
+          </p>
+        </div>
+      </div>
+
+      {/* Search card – overlaps the hero */}
+      <div className="mx-auto -mt-6 max-w-4xl px-4">
         <SearchForm onSearch={handleSearch} loading={loading} />
       </div>
 
-      {/* Error */}
-      {result?.error && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          <strong>Error:</strong> {result.error}
-        </div>
-      )}
+      {/* Results area */}
+      <div className="mx-auto max-w-4xl px-4 pb-16 pt-8">
+        {/* Error */}
+        {result?.error && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+            <svg className="mt-0.5 h-4 w-4 shrink-0 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <strong>Error: </strong>
+              {result.error}
+            </div>
+          </div>
+        )}
 
-      {/* Results */}
-      {result && !result.error && (
-        <ResultsTable offers={result.offers} combinations={result.combinations} />
-      )}
+        {/* Loading skeleton */}
+        {loading && <SkeletonCards />}
+
+        {/* Results */}
+        {!loading && hasResults && (
+          <ResultsTable offers={result.offers} combinations={result.combinations} />
+        )}
+
+        {/* Empty landing state */}
+        {!loading && !result && (
+          <div className="py-16 text-center">
+            <p className="text-sm text-slate-400">
+              Enter your route and date range above to find the cheapest fares.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Footer */}
-      <footer className="mt-12 text-center text-xs text-slate-400">
-        Open-source · Powered by{" "}
-        <a
-          href="https://developers.amadeus.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-sky-500"
-        >
-          Amadeus
-        </a>{" "}
-        ·{" "}
-        <a
-          href="https://github.com/renhotsai/fly-panner"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-sky-500"
-        >
+      <footer className="border-t border-slate-100 py-6 text-center text-xs text-slate-400">
+        Open-source ·{" "}
+        <a href="https://developers.amadeus.com/" target="_blank" rel="noopener noreferrer" className="hover:text-sky-500 underline">
+          Amadeus API
+        </a>
+        {" · "}
+        <a href="https://github.com/renhotsai/fly-panner" target="_blank" rel="noopener noreferrer" className="hover:text-sky-500 underline">
           GitHub
         </a>
       </footer>

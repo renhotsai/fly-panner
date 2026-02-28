@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { FlightOffer } from "@/lib/types";
+import type { FlightItinerary, FlightOffer } from "@/lib/types";
 
 interface Props {
   offers: FlightOffer[];
@@ -10,63 +10,204 @@ interface Props {
 
 type SortKey = "price" | "departure" | "duration" | "stops";
 
-function formatDuration(minutes: number): string {
+function fmt(minutes: number) {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+function fmtTime(iso: string) {
+  return iso.slice(11, 16); // "HH:MM"
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    weekday: "short",
+  });
 }
 
 function downloadCsv(offers: FlightOffer[]) {
   const header = [
-    "rank",
-    "price",
-    "currency",
-    "departure_date",
-    "return_date",
-    "trip_duration_days",
-    "origin",
-    "destination",
-    "outbound_duration_min",
-    "outbound_stops",
-    "outbound_carriers",
-    "inbound_duration_min",
-    "inbound_stops",
-    "inbound_carriers",
+    "rank","price","currency","departure_date","return_date",
+    "trip_duration_days","origin","destination","outbound_duration_min",
+    "outbound_stops","outbound_carriers","inbound_duration_min",
+    "inbound_stops","inbound_carriers",
   ].join(",");
-
   const rows = offers.map((o, i) =>
     [
-      i + 1,
-      o.price,
-      o.currency,
-      o.departureDate,
-      o.returnDate ?? "",
-      o.tripDurationDays ?? "",
-      o.outbound.origin,
-      o.outbound.destination,
-      o.outbound.totalDurationMinutes,
-      o.outbound.stops,
-      o.outbound.carriers.join("|"),
-      o.inbound?.totalDurationMinutes ?? "",
-      o.inbound?.stops ?? "",
-      o.inbound?.carriers.join("|") ?? "",
+      i + 1, o.price, o.currency, o.departureDate, o.returnDate ?? "",
+      o.tripDurationDays ?? "", o.outbound.origin, o.outbound.destination,
+      o.outbound.totalDurationMinutes, o.outbound.stops,
+      o.outbound.carriers.join("|"), o.inbound?.totalDurationMinutes ?? "",
+      o.inbound?.stops ?? "", o.inbound?.carriers.join("|") ?? "",
     ].join(",")
   );
-
-  const blob = new Blob([[header, ...rows].join("\n")], {
-    type: "text/csv;charset=utf-8;",
+  const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+  const a = Object.assign(document.createElement("a"), {
+    href: URL.createObjectURL(blob),
+    download: "fly-panner-results.csv",
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "fly-panner-results.csv";
   a.click();
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(a.href);
 }
+
+// ── Route visualizer ──────────────────────────────────────────────────
+function RouteVisualizer({ it }: { it: FlightItinerary }) {
+  const depTime = fmtTime(it.segments[0].departureTime);
+  const arrTime = fmtTime(it.segments[it.segments.length - 1].arrivalTime);
+
+  return (
+    <div className="flex items-center gap-3">
+      {/* Origin */}
+      <div className="w-16 shrink-0 text-right">
+        <div className="text-xl font-bold text-slate-800">{it.origin}</div>
+        <div className="text-sm tabular-nums text-slate-500">{depTime}</div>
+      </div>
+
+      {/* Line */}
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5">
+        <span className="text-[11px] text-slate-400">{fmt(it.totalDurationMinutes)}</span>
+        <div className="flex w-full items-center gap-1">
+          <div className="h-px flex-1 bg-slate-200" />
+          {it.stops > 0 &&
+            Array.from({ length: it.stops }).map((_, i) => (
+              <span key={i} className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+            ))}
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+        <span className="text-[11px] text-slate-400">
+          {it.stops === 0 ? (
+            <span className="font-medium text-emerald-600">Direct</span>
+          ) : (
+            <span className="font-medium text-amber-600">
+              {it.stops} stop{it.stops > 1 ? "s" : ""}
+            </span>
+          )}
+          {" · "}
+          {it.carriers.join(", ")}
+        </span>
+      </div>
+
+      {/* Destination */}
+      <div className="w-16 shrink-0 text-left">
+        <div className="text-xl font-bold text-slate-800">{it.destination}</div>
+        <div className="text-sm tabular-nums text-slate-500">{arrTime}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Flight card ───────────────────────────────────────────────────────
+function FlightCard({ offer, rank }: { offer: FlightOffer; rank: number }) {
+  const isBest = rank === 1;
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
+        isBest ? "border-sky-200 ring-1 ring-sky-200" : "border-slate-200"
+      }`}
+    >
+      {/* Best deal ribbon */}
+      {isBest && (
+        <div className="absolute right-0 top-0 rounded-bl-xl bg-sky-500 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white">
+          Best deal
+        </div>
+      )}
+
+      <div className="flex flex-col gap-0 md:flex-row">
+        {/* Left – itinerary */}
+        <div className="flex-1 p-5">
+          {/* Outbound */}
+          <div className="mb-1">
+            <span className="mb-2 inline-block text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+              {offer.inbound ? "Outbound · " : ""}
+              {fmtDate(offer.outbound.departureDate)}
+            </span>
+          </div>
+          <RouteVisualizer it={offer.outbound} />
+
+          {/* Inbound */}
+          {offer.inbound && (
+            <>
+              <div className="my-4 flex items-center gap-2">
+                <div className="h-px flex-1 border-t border-dashed border-slate-200" />
+                <span className="text-[11px] font-medium uppercase tracking-widest text-slate-400">
+                  Return
+                </span>
+                <div className="h-px flex-1 border-t border-dashed border-slate-200" />
+              </div>
+              <div className="mb-1">
+                <span className="mb-2 inline-block text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                  {fmtDate(offer.inbound.departureDate)}
+                </span>
+              </div>
+              <RouteVisualizer it={offer.inbound} />
+            </>
+          )}
+        </div>
+
+        {/* Right – price */}
+        <div className="flex shrink-0 flex-col items-end justify-center border-t border-slate-100 px-5 py-5 md:w-44 md:border-l md:border-t-0">
+          <div className="text-3xl font-extrabold text-emerald-600">
+            {offer.price.toLocaleString("en-US", {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })}
+          </div>
+          <div className="mb-3 text-sm text-slate-400">{offer.currency} / person</div>
+
+          {offer.tripDurationDays != null && (
+            <div className="text-xs text-slate-400">
+              {offer.tripDurationDays}-day trip
+            </div>
+          )}
+          {offer.seatsRemaining != null && offer.seatsRemaining <= 5 && (
+            <div className="mt-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">
+              {offer.seatsRemaining} seat{offer.seatsRemaining !== 1 ? "s" : ""} left
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Skeleton card ─────────────────────────────────────────────────────
+export function SkeletonCards() {
+  return (
+    <div className="flex flex-col gap-3">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="animate-pulse rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+          style={{ animationDelay: `${i * 120}ms` }}
+        >
+          <div className="mb-4 h-3 w-28 rounded bg-slate-100" />
+          <div className="flex items-center gap-4">
+            <div className="h-8 w-12 rounded-lg bg-slate-100" />
+            <div className="flex-1">
+              <div className="h-px bg-slate-100" />
+            </div>
+            <div className="h-8 w-12 rounded-lg bg-slate-100" />
+            <div className="ml-auto h-8 w-20 rounded-lg bg-emerald-50" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "price", label: "Price" },
+  { key: "departure", label: "Departure" },
+  { key: "duration", label: "Duration" },
+  { key: "stops", label: "Stops" },
+];
 
 export default function ResultsTable({ offers, combinations }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("price");
   const [sortAsc, setSortAsc] = useState(true);
-
-  const isRoundTrip = offers.some((o) => o.inbound !== null);
 
   const sorted = [...offers].sort((a, b) => {
     let diff = 0;
@@ -77,152 +218,70 @@ export default function ResultsTable({ offers, combinations }: Props) {
     return sortAsc ? diff : -diff;
   });
 
-  function handleSort(key: SortKey) {
+  function toggleSort(key: SortKey) {
     if (key === sortKey) setSortAsc((v) => !v);
-    else {
-      setSortKey(key);
-      setSortAsc(true);
-    }
-  }
-
-  function SortHeader({
-    label,
-    col,
-  }: {
-    label: string;
-    col: SortKey;
-  }) {
-    const active = sortKey === col;
-    return (
-      <th
-        className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-sky-600"
-        onClick={() => handleSort(col)}
-      >
-        <span className="flex items-center gap-1">
-          {label}
-          <span className="text-slate-300">
-            {active ? (sortAsc ? "↑" : "↓") : "↕"}
-          </span>
-        </span>
-      </th>
-    );
+    else { setSortKey(key); setSortAsc(true); }
   }
 
   if (offers.length === 0) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
-        No flights found. Try broadening your date range or checking the airport codes.
+      <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+        <div className="mb-3 text-4xl">🔍</div>
+        <p className="font-semibold text-slate-600">No flights found</p>
+        <p className="mt-1 text-sm text-slate-400">
+          Try broadening your date range or checking the airport codes.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-        <div>
-          <span className="font-semibold text-slate-700">
-            {offers.length} offer{offers.length !== 1 ? "s" : ""}
-          </span>
-          <span className="ml-2 text-sm text-slate-400">
-            from {combinations} date combination{combinations !== 1 ? "s" : ""}
-          </span>
+    <div>
+      {/* Stats + controls */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-slate-500">
+          <span className="font-semibold text-slate-700">{offers.length}</span>{" "}
+          offer{offers.length !== 1 ? "s" : ""} from{" "}
+          <span className="font-semibold text-slate-700">{combinations}</span>{" "}
+          date combination{combinations !== 1 ? "s" : ""}
+        </p>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400">Sort:</span>
+          {SORT_OPTIONS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => toggleSort(key)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                sortKey === key
+                  ? "bg-sky-500 text-white"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+              }`}
+            >
+              {label} {sortKey === key ? (sortAsc ? "↑" : "↓") : ""}
+            </button>
+          ))}
+
+          <button
+            onClick={() => downloadCsv(offers)}
+            className="ml-2 flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-50"
+          >
+            <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+            CSV
+          </button>
         </div>
-        <button
-          onClick={() => downloadCsv(offers)}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
-        >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fillRule="evenodd"
-              d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-              clipRule="evenodd"
-            />
-          </svg>
-          Export CSV
-        </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                #
-              </th>
-              <SortHeader label="Price" col="price" />
-              <SortHeader label="Depart" col="departure" />
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Route
-              </th>
-              <SortHeader label="Duration" col="duration" />
-              <SortHeader label="Stops" col="stops" />
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Carrier(s)
-              </th>
-              {isRoundTrip && (
-                <>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Return
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Trip
-                  </th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {sorted.map((offer, idx) => (
-              <tr key={idx} className="hover:bg-sky-50 transition-colors">
-                <td className="px-4 py-3 text-slate-400 text-xs">{idx + 1}</td>
-                <td className="px-4 py-3 font-semibold text-emerald-600 whitespace-nowrap">
-                  {offer.price.toLocaleString(undefined, {
-                    style: "currency",
-                    currency: offer.currency,
-                    minimumFractionDigits: 2,
-                  })}
-                </td>
-                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                  {offer.departureDate}
-                </td>
-                <td className="px-4 py-3 text-slate-700 whitespace-nowrap font-medium">
-                  {offer.outbound.origin} → {offer.outbound.destination}
-                </td>
-                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                  {formatDuration(offer.outbound.totalDurationMinutes)}
-                </td>
-                <td className="px-4 py-3">
-                  {offer.outbound.stops === 0 ? (
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                      Direct
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                      {offer.outbound.stops} stop{offer.outbound.stops > 1 ? "s" : ""}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-slate-500 text-xs">
-                  {offer.outbound.carriers.join(", ")}
-                </td>
-                {isRoundTrip && (
-                  <>
-                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                      {offer.returnDate ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
-                      {offer.tripDurationDays != null
-                        ? `${offer.tripDurationDays}d`
-                        : "—"}
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Cards */}
+      <div className="flex flex-col gap-3">
+        {sorted.map((offer, idx) => (
+          <FlightCard key={idx} offer={offer} rank={idx + 1} />
+        ))}
       </div>
-      <p className="px-5 py-3 text-xs text-slate-400 border-t border-slate-100">
+
+      <p className="mt-4 text-center text-xs text-slate-400">
         Prices per person · All taxes included · Powered by Amadeus
       </p>
     </div>
