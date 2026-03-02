@@ -3,11 +3,12 @@
  * Uses the OAuth2 client-credentials flow with an in-memory token cache.
  */
 
-import type { FlightItinerary, FlightOffer, FlightSegment } from "./types";
+import type { AirportOption, FlightItinerary, FlightOffer, FlightSegment } from "./types";
 
 const BASE_URL = "https://test.api.amadeus.com";
 const TOKEN_URL = `${BASE_URL}/v1/security/oauth2/token`;
 const SEARCH_URL = `${BASE_URL}/v2/shopping/flight-offers`;
+const LOCATIONS_URL = `${BASE_URL}/v1/reference-data/locations`;
 
 // Token cache (module-level, reused across requests within the same process)
 let _cachedToken: { value: string; expiresAt: number } | null = null;
@@ -111,6 +112,35 @@ function parseOffer(raw: Record<string, unknown>): FlightOffer {
     outbound,
     inbound,
   };
+}
+
+export async function searchAirports(params: {
+  apiKey: string;
+  apiSecret: string;
+  keyword: string;
+}): Promise<AirportOption[]> {
+  const token = await getAccessToken(params.apiKey, params.apiSecret);
+  const query = new URLSearchParams({
+    subType: "AIRPORT",
+    keyword: params.keyword,
+    "page[limit]": "8",
+  });
+
+  const res = await fetch(`${LOCATIONS_URL}?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) return [];
+  const data = await res.json() as { data?: Record<string, unknown>[] };
+  return (data.data ?? []).map((loc) => {
+    const addr = loc.address as Record<string, string>;
+    return {
+      iataCode: loc.iataCode as string,
+      name: loc.name as string,
+      cityName: addr.cityName ?? "",
+      countryCode: addr.countryCode ?? "",
+    };
+  });
 }
 
 export async function searchFlights(params: {

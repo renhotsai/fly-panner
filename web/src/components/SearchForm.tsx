@@ -3,17 +3,15 @@
 import { useState, useMemo } from "react";
 import type { SearchParams } from "@/lib/types";
 import { rangeLength } from "@/lib/dateRange";
+import AirportCombobox from "./AirportCombobox";
 
 interface Props {
   onSearch: (params: SearchParams) => void;
   loading: boolean;
 }
 
-const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF", "SGD"];
+const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF", "SGD", "TWD"];
 const today = new Date().toISOString().slice(0, 10);
-
-const inputCls =
-  "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100 placeholder:text-slate-400";
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -27,6 +25,8 @@ export default function SearchForm({ onSearch, loading }: Props) {
   const [tripType, setTripType] = useState<"oneway" | "roundtrip">("roundtrip");
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
+  // swapKey forces AirportCombobox to remount (reset display) after swap
+  const [swapKey, setSwapKey] = useState(0);
   const [departFrom, setDepartFrom] = useState(today);
   const [departTo, setDepartTo] = useState(today);
   const [returnFrom, setReturnFrom] = useState("");
@@ -34,6 +34,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
   const [adults, setAdults] = useState(1);
   const [currency, setCurrency] = useState("USD");
   const [topN, setTopN] = useState(10);
+  const [error, setError] = useState("");
 
   const combinations = useMemo(() => {
     const depCount = rangeLength(departFrom, departTo || departFrom);
@@ -46,13 +47,18 @@ export default function SearchForm({ onSearch, loading }: Props) {
   function swap() {
     setOrigin(destination);
     setDestination(origin);
+    setSwapKey((k) => k + 1);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (origin.length !== 3) { setError("Please select a valid origin airport."); return; }
+    if (destination.length !== 3) { setError("Please select a valid destination airport."); return; }
+    if (origin === destination) { setError("Origin and destination must be different."); return; }
+    setError("");
     onSearch({
-      origin: origin.trim().toUpperCase(),
-      destination: destination.trim().toUpperCase(),
+      origin,
+      destination,
       departFrom,
       departTo: departTo || departFrom,
       returnFrom: tripType === "roundtrip" ? returnFrom : "",
@@ -86,28 +92,17 @@ export default function SearchForm({ onSearch, loading }: Props) {
         ))}
       </div>
 
-      {/* Airport + departure row */}
+      {/* Airport + date row */}
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end">
         {/* From */}
         <div className="flex-1">
           <Label>From</Label>
-          <div className="relative">
-            <svg
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-            </svg>
-            <input
-              className={inputCls + " pl-9 uppercase tracking-widest"}
-              placeholder="JFK"
-              value={origin}
-              maxLength={3}
-              onChange={(e) => setOrigin(e.target.value.toUpperCase())}
-              required
-            />
-          </div>
+          <AirportCombobox
+            key={`from-${swapKey}`}
+            placeholder="JFK"
+            initialValue={origin}
+            onChange={setOrigin}
+          />
         </div>
 
         {/* Swap button */}
@@ -126,23 +121,12 @@ export default function SearchForm({ onSearch, loading }: Props) {
         {/* To */}
         <div className="flex-1">
           <Label>To</Label>
-          <div className="relative">
-            <svg
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-            </svg>
-            <input
-              className={inputCls + " pl-9 uppercase tracking-widest"}
-              placeholder="LHR"
-              value={destination}
-              maxLength={3}
-              onChange={(e) => setDestination(e.target.value.toUpperCase())}
-              required
-            />
-          </div>
+          <AirportCombobox
+            key={`to-${swapKey}`}
+            placeholder="LHR"
+            initialValue={destination}
+            onChange={setDestination}
+          />
         </div>
 
         {/* Departure range */}
@@ -151,7 +135,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
           <div className="flex items-center gap-2">
             <input
               type="date"
-              className={inputCls}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
               value={departFrom}
               min={today}
               onChange={(e) => setDepartFrom(e.target.value)}
@@ -160,7 +144,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
             <span className="shrink-0 text-slate-300">→</span>
             <input
               type="date"
-              className={inputCls}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
               value={departTo}
               min={departFrom}
               onChange={(e) => setDepartTo(e.target.value)}
@@ -175,7 +159,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
             <div className="flex items-center gap-2">
               <input
                 type="date"
-                className={inputCls}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
                 value={returnFrom}
                 min={departFrom}
                 onChange={(e) => setReturnFrom(e.target.value)}
@@ -184,7 +168,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
               <span className="shrink-0 text-slate-300">→</span>
               <input
                 type="date"
-                className={inputCls}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
                 value={returnTo}
                 min={returnFrom || departFrom}
                 onChange={(e) => setReturnTo(e.target.value)}
@@ -194,8 +178,13 @@ export default function SearchForm({ onSearch, loading }: Props) {
         )}
       </div>
 
+      {/* Inline validation error */}
+      {error && (
+        <p className="mb-3 text-xs font-medium text-red-500">{error}</p>
+      )}
+
       {/* Options row */}
-      <div className="mb-5 flex flex-wrap items-end gap-4">
+      <div className="flex flex-wrap items-end gap-4">
         {/* Adults counter */}
         <div>
           <Label>Passengers</Label>
@@ -203,8 +192,8 @@ export default function SearchForm({ onSearch, loading }: Props) {
             <button
               type="button"
               onClick={() => setAdults((n) => Math.max(1, n - 1))}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"
               disabled={adults <= 1}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"
             >
               −
             </button>
@@ -214,8 +203,8 @@ export default function SearchForm({ onSearch, loading }: Props) {
             <button
               type="button"
               onClick={() => setAdults((n) => Math.min(9, n + 1))}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"
               disabled={adults >= 9}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"
             >
               +
             </button>
@@ -246,8 +235,8 @@ export default function SearchForm({ onSearch, loading }: Props) {
             <button
               type="button"
               onClick={() => setTopN((n) => Math.max(5, n - 5))}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"
               disabled={topN <= 5}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"
             >
               −
             </button>

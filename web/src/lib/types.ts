@@ -42,6 +42,13 @@ export interface SearchParams {
   topN: number;
 }
 
+export interface AirportOption {
+  iataCode: string;
+  name: string;       // "JOHN F KENNEDY INTL"
+  cityName: string;   // "NEW YORK"
+  countryCode: string; // "US"
+}
+
 export interface SearchResponse {
   offers: FlightOffer[];
   combinations: number;
