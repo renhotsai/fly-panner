@@ -40,6 +40,7 @@ export interface SearchParams {
   adults: number;
   currency: string;
   topN: number;
+  nonStop: boolean;
 }
 
 export interface AirportOption {

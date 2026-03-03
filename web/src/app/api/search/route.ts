@@ -80,7 +80,8 @@ export async function POST(req: NextRequest) {
         returnDate: ret,
         adults: params.adults,
         currency: params.currency,
-        max: 5,
+        max: 15,
+        nonStop: params.nonStop,
       });
     } catch {
       return [] as FlightOffer[];

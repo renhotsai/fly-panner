@@ -153,6 +153,7 @@ export async function searchFlights(params: {
   adults: number;
   currency: string;
   max?: number;
+  nonStop?: boolean;
 }): Promise<FlightOffer[]> {
   const token = await getAccessToken(params.apiKey, params.apiSecret);
 
@@ -162,10 +163,13 @@ export async function searchFlights(params: {
     departureDate: params.departureDate,
     adults: String(params.adults),
     currencyCode: params.currency,
-    max: String(params.max ?? 5),
+    max: String(params.max ?? 15),
   });
   if (params.returnDate) {
     query.set("returnDate", params.returnDate);
+  }
+  if (params.nonStop) {
+    query.set("nonStop", "true");
   }
 
   const res = await fetch(`${SEARCH_URL}?${query}`, {

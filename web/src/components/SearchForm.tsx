@@ -189,6 +189,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
   const [adults, setAdults] = useState(1);
   const [currency, setCurrency] = useState("USD");
   const [topN, setTopN] = useState(10);
+  const [nonStop, setNonStop] = useState(false);
   const [error, setError] = useState("");
 
   const combinations = useMemo(() => {
@@ -221,6 +222,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
       adults,
       currency,
       topN,
+      nonStop,
     });
   }
 
@@ -229,8 +231,8 @@ export default function SearchForm({ onSearch, loading }: Props) {
       onSubmit={handleSubmit}
       className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-100"
     >
-      {/* Trip type tabs */}
-      <div className="mb-6 flex gap-2">
+      {/* Trip type tabs + direct-only toggle */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
         {(["oneway", "roundtrip"] as const).map((type) => (
           <button
             key={type}
@@ -245,6 +247,25 @@ export default function SearchForm({ onSearch, loading }: Props) {
             {type === "oneway" ? "One-way" : "Round trip"}
           </button>
         ))}
+
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={nonStop}
+            onClick={() => setNonStop((v) => !v)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+              nonStop ? "bg-sky-500" : "bg-slate-200"
+            }`}
+          >
+            <span
+              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                nonStop ? "translate-x-4" : "translate-x-1"
+              }`}
+            />
+          </button>
+          <span className="text-sm text-slate-500">Direct only</span>
+        </div>
       </div>
 
       {/* Airport + date row */}
