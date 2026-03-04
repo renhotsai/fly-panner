@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
-import { searchFlights } from "@/lib/tequila";
+import { searchFlights } from "@/lib/serpapi";
+import { dateRange } from "@/lib/dateRange";
 import type { FlightOffer } from "@/lib/types";
+
+const MAX_WORKERS = 4;
+
+async function pool<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
+  const results: T[] = [];
+  let i = 0;
+  async function worker() {
+    while (i < tasks.length) {
+      const idx = i++;
+      results[idx] = await tasks[idx]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
+  return results;
+}
 
 function fmt(minutes: number) {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
@@ -50,7 +66,7 @@ function buildEmail(offers: FlightOffer[], sub: {
     })
     .join("");
 
-  const dateRange = sub.departFrom === sub.departTo
+  const departRange = sub.departFrom === sub.departTo
     ? sub.departFrom
     : `${sub.departFrom} ～ ${sub.departTo}`;
   const returnRange = isRoundTrip
@@ -68,7 +84,7 @@ function buildEmail(offers: FlightOffer[], sub: {
       <h1 style="margin:4px 0 0;font-size:24px;color:#fff">${sub.origin} → ${sub.destination}</h1>
     </div>
     <div style="padding:16px 32px;background:#f0f9ff;border-bottom:1px solid #e0f2fe;font-size:13px;color:#0369a1">
-      出發：${dateRange}
+      出發：${departRange}
       ${isRoundTrip ? `&nbsp;&nbsp;|&nbsp;&nbsp; 回程：${returnRange}` : "&nbsp;&nbsp;|&nbsp;&nbsp; 單程"}
     </div>
     <div style="padding:24px 32px">
@@ -95,7 +111,7 @@ function buildEmail(offers: FlightOffer[], sub: {
       </div>
     </div>
     <div style="padding:16px 32px;border-top:1px solid #f1f5f9;font-size:12px;color:#94a3b8;text-align:center">
-      Powered by Kiwi.com Tequila &nbsp;·&nbsp;
+      Powered by Google Flights &nbsp;·&nbsp;
       <a href="${unsubUrl}" style="color:#94a3b8">取消訂閱</a>
     </div>
   </div>
@@ -111,7 +127,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const apiKey = process.env.TEQUILA_API_KEY ?? "";
+  const apiKey = process.env.SERPAPI_API_KEY ?? "";
   const resendKey = process.env.RESEND_API_KEY ?? "";
   const fromEmail = process.env.RESEND_FROM ?? "alerts@fly-panner.com";
 
@@ -127,23 +143,40 @@ export async function GET(req: NextRequest) {
 
   for (const sub of subs) {
     try {
-      const offers = await searchFlights({
-        apiKey,
-        origin: sub.origin,
-        destination: sub.destination,
-        departFrom: sub.departFrom,
-        departTo: sub.departTo,
-        returnFrom: sub.returnFrom || undefined,
-        returnTo: sub.returnTo || undefined,
-        adults: sub.adults,
-        currency: sub.currency,
-        limit: 50,
-        nonStop: sub.nonStop,
+      const isRoundTrip = !!sub.returnFrom;
+      const datePairs: { dep: string; ret?: string }[] = [];
+
+      for (const dep of dateRange(sub.departFrom, sub.departTo)) {
+        if (!isRoundTrip) {
+          datePairs.push({ dep });
+        } else {
+          for (const ret of dateRange(sub.returnFrom, sub.returnTo)) {
+            if (ret >= dep) datePairs.push({ dep, ret });
+          }
+        }
+      }
+
+      const tasks = datePairs.slice(0, 20).map(({ dep, ret }) => async () => {
+        try {
+          return await searchFlights({
+            apiKey,
+            origin: sub.origin,
+            destination: sub.destination,
+            departureDate: dep,
+            returnDate: ret ?? undefined,
+            adults: sub.adults,
+            currency: sub.currency,
+            nonStop: sub.nonStop,
+          });
+        } catch {
+          return [] as FlightOffer[];
+        }
       });
 
-      const topOffers = (offers as FlightOffer[]).slice(0, sub.topN);
-      const { subject, html } = buildEmail(topOffers, sub);
+      const nested = await pool(tasks, MAX_WORKERS);
+      const offers = nested.flat().sort((a, b) => a.price - b.price).slice(0, sub.topN);
 
+      const { subject, html } = buildEmail(offers, sub);
       await resend.emails.send({ from: fromEmail, to: sub.email, subject, html });
       await prisma.subscription.update({
         where: { id: sub.id },
