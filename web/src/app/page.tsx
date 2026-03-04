@@ -107,8 +107,8 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-slate-100 py-6 text-center text-xs text-slate-400">
         Open-source ·{" "}
-        <a href="https://developers.amadeus.com/" target="_blank" rel="noopener noreferrer" className="hover:text-sky-500 underline">
-          Amadeus API
+        <a href="https://tequila.kiwi.com/" target="_blank" rel="noopener noreferrer" className="hover:text-sky-500 underline">
+          Kiwi Tequila API
         </a>
         {" · "}
         <a href="https://github.com/renhotsai/fly-panner" target="_blank" rel="noopener noreferrer" className="hover:text-sky-500 underline">
