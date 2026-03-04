@@ -3,6 +3,7 @@
 import { useState } from "react";
 import SearchForm from "@/components/SearchForm";
 import ResultsTable, { SkeletonCards } from "@/components/ResultsTable";
+import SubscribeForm from "@/components/SubscribeForm";
 import type { FlightOffer, SearchParams } from "@/lib/types";
 
 interface SearchState {
@@ -14,10 +15,12 @@ interface SearchState {
 export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SearchState | null>(null);
+  const [lastParams, setLastParams] = useState<SearchParams | null>(null);
 
   async function handleSearch(params: SearchParams) {
     setLoading(true);
     setResult(null);
+    setLastParams(params);
     try {
       const res = await fetch("/api/search", {
         method: "POST",
@@ -83,9 +86,12 @@ export default function HomePage() {
         {/* Loading skeleton */}
         {loading && <SkeletonCards />}
 
-        {/* Results */}
+        {/* Results + subscribe */}
         {!loading && hasResults && (
-          <ResultsTable offers={result.offers} combinations={result.combinations} />
+          <>
+            <ResultsTable offers={result.offers} combinations={result.combinations} />
+            {lastParams && <SubscribeForm searchParams={lastParams} />}
+          </>
         )}
 
         {/* Empty landing state */}
