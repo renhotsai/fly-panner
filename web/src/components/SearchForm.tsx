@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import type { SearchParams } from "@/lib/types";
 import { rangeLength } from "@/lib/dateRange";
 import AirportCombobox from "./AirportCombobox";
@@ -191,6 +191,10 @@ export default function SearchForm({ onSearch, loading }: Props) {
   const [topN, setTopN] = useState(10);
   const [nonStop, setNonStop] = useState(false);
   const [error, setError] = useState("");
+  const departFromRef = useRef<HTMLInputElement>(null);
+  const departToRef = useRef<HTMLInputElement>(null);
+  const returnFromRef = useRef<HTMLInputElement>(null);
+  const returnToRef = useRef<HTMLInputElement>(null);
 
   const combinations = useMemo(() => {
     const depCount = rangeLength(departFrom, departTo || departFrom);
@@ -310,20 +314,22 @@ export default function SearchForm({ onSearch, loading }: Props) {
           <Label>Depart</Label>
           <div className="flex items-center gap-2">
             <input
+              ref={departFromRef}
               type="date"
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
               value={departFrom}
               min={today}
-              onChange={(e) => setDepartFrom(e.target.value)}
+              onChange={(e) => { setDepartFrom(e.target.value); departFromRef.current?.blur(); }}
               required
             />
             <span className="shrink-0 text-slate-300">→</span>
             <input
+              ref={departToRef}
               type="date"
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
               value={departTo}
               min={departFrom}
-              onChange={(e) => setDepartTo(e.target.value)}
+              onChange={(e) => { setDepartTo(e.target.value); departToRef.current?.blur(); }}
             />
           </div>
         </div>
@@ -334,20 +340,22 @@ export default function SearchForm({ onSearch, loading }: Props) {
             <Label>Return</Label>
             <div className="flex items-center gap-2">
               <input
+                ref={returnFromRef}
                 type="date"
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
                 value={returnFrom}
                 min={departFrom}
-                onChange={(e) => setReturnFrom(e.target.value)}
+                onChange={(e) => { setReturnFrom(e.target.value); returnFromRef.current?.blur(); }}
                 required
               />
               <span className="shrink-0 text-slate-300">→</span>
               <input
+                ref={returnToRef}
                 type="date"
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
                 value={returnTo}
                 min={returnFrom || departFrom}
-                onChange={(e) => setReturnTo(e.target.value)}
+                onChange={(e) => { setReturnTo(e.target.value); returnToRef.current?.blur(); }}
               />
             </div>
           </div>
