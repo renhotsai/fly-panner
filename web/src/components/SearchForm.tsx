@@ -168,6 +168,12 @@ const CURRENCIES: { code: string; name: string }[] = [
 ];
 const today = new Date().toISOString().slice(0, 10);
 
+function addDays(dateStr: string, n: number): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 function Label({ children }: { children: React.ReactNode }) {
   return (
     <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-slate-400">
@@ -215,6 +221,10 @@ export default function SearchForm({ onSearch, loading }: Props) {
     if (origin.length !== 3) { setError("Please select a valid origin airport."); return; }
     if (destination.length !== 3) { setError("Please select a valid destination airport."); return; }
     if (origin === destination) { setError("Origin and destination must be different."); return; }
+    if (tripType === "roundtrip" && returnFrom && returnFrom <= (departTo || departFrom)) {
+      setError("Return date must be at least 1 day after the departure date.");
+      return;
+    }
     setError("");
     onSearch({
       origin,
@@ -319,7 +329,16 @@ export default function SearchForm({ onSearch, loading }: Props) {
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
               value={departFrom}
               min={today}
-              onChange={(e) => { setDepartFrom(e.target.value); departFromRef.current?.blur(); }}
+              onChange={(e) => {
+                const val = e.target.value;
+                setDepartFrom(val);
+                if (returnFrom && returnFrom <= val) {
+                  const next = addDays(val, 1);
+                  setReturnFrom(next);
+                  if (returnTo && returnTo < next) setReturnTo(next);
+                }
+                departFromRef.current?.blur();
+              }}
               required
             />
             <span className="shrink-0 text-slate-300">→</span>
@@ -344,7 +363,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
                 type="date"
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
                 value={returnFrom}
-                min={departFrom}
+                min={addDays(departFrom, 1)}
                 onChange={(e) => { setReturnFrom(e.target.value); returnFromRef.current?.blur(); }}
                 required
               />
