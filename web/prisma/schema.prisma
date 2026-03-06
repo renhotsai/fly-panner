@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Subscription {
@@ -15,7 +14,7 @@ model Subscription {
   destination String
   departFrom  String
   departTo    String
-  returnFrom  String
+  returnFrom  String    // empty string = one-way
   returnTo    String
   adults      Int       @default(1)
   currency    String    @default("USD")
