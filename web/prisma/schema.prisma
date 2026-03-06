@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Subscription {
+  id          String    @id @default(cuid())
+  email       String
+  origin      String
+  destination String
+  departFrom  String
+  departTo    String
+  returnFrom  String
+  returnTo    String
+  adults      Int       @default(1)
+  currency    String    @default("USD")
+  nonStop     Boolean   @default(false)
+  topN        Int       @default(5)
+  token       String    @unique @default(cuid())
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  lastSentAt  DateTime?
+}
