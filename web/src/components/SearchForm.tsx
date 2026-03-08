@@ -332,8 +332,12 @@ export default function SearchForm({ onSearch, loading }: Props) {
               onChange={(e) => {
                 const val = e.target.value;
                 setDepartFrom(val);
-                if (returnFrom && returnFrom <= val) {
-                  const next = addDays(val, 1);
+                // Keep departTo >= departFrom
+                const effectiveDepartTo = departTo && departTo >= val ? departTo : val;
+                if (effectiveDepartTo !== departTo) setDepartTo(effectiveDepartTo);
+                // Keep returnFrom at least 1 day after the effective departTo
+                if (returnFrom && returnFrom <= effectiveDepartTo) {
+                  const next = addDays(effectiveDepartTo, 1);
                   setReturnFrom(next);
                   if (returnTo && returnTo < next) setReturnTo(next);
                 }
@@ -348,7 +352,17 @@ export default function SearchForm({ onSearch, loading }: Props) {
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
               value={departTo}
               min={departFrom}
-              onChange={(e) => { setDepartTo(e.target.value); departToRef.current?.blur(); }}
+              onChange={(e) => {
+                const val = e.target.value;
+                setDepartTo(val);
+                // Keep returnFrom at least 1 day after the new departTo
+                if (returnFrom && returnFrom <= val) {
+                  const next = addDays(val, 1);
+                  setReturnFrom(next);
+                  if (returnTo && returnTo < next) setReturnTo(next);
+                }
+                departToRef.current?.blur();
+              }}
             />
           </div>
         </div>
@@ -363,7 +377,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
                 type="date"
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
                 value={returnFrom}
-                min={addDays(departFrom, 1)}
+                min={addDays(departTo || departFrom, 1)}
                 onChange={(e) => { setReturnFrom(e.target.value); returnFromRef.current?.blur(); }}
                 required
               />
