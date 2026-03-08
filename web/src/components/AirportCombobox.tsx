@@ -193,7 +193,7 @@ export default function AirportCombobox({
                 {titleCase(opt.name)}
               </span>
               <span className="shrink-0 text-xs text-slate-400">
-                {titleCase(opt.cityName)}, {opt.countryCode}
+                {titleCase(opt.cityName)}, {opt.countryName}
               </span>
             </li>
           ))}

@@ -45,9 +45,10 @@ export interface SearchParams {
 
 export interface AirportOption {
   iataCode: string;
-  name: string;       // "JOHN F KENNEDY INTL"
-  cityName: string;   // "NEW YORK"
+  name: string;        // "JOHN F KENNEDY INTL"
+  cityName: string;    // "NEW YORK"
   countryCode: string; // "US"
+  countryName: string; // "United States"
 }
 
 export interface SearchResponse {
