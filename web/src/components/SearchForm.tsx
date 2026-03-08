@@ -332,12 +332,12 @@ export default function SearchForm({ onSearch, loading }: Props) {
               onChange={(e) => {
                 const val = e.target.value;
                 setDepartFrom(val);
-                // Keep departTo >= departFrom
-                const effectiveDepartTo = departTo && departTo >= val ? departTo : val;
-                if (effectiveDepartTo !== departTo) setDepartTo(effectiveDepartTo);
-                // Keep returnFrom at least 1 day after the effective departTo
-                if (returnFrom && returnFrom <= effectiveDepartTo) {
-                  const next = addDays(effectiveDepartTo, 1);
+                // Clamp departTo up to departFrom if it fell behind
+                const newDepartTo = departTo < val ? val : departTo;
+                setDepartTo(newDepartTo);
+                // Push return dates forward if they now conflict with newDepartTo
+                if (returnFrom && returnFrom <= newDepartTo) {
+                  const next = addDays(newDepartTo, 1);
                   setReturnFrom(next);
                   if (returnTo && returnTo < next) setReturnTo(next);
                 }
