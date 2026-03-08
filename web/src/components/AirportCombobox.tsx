@@ -35,6 +35,8 @@ export default function AirportCombobox({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
+  // Tracks when user clicked to edit an existing label — skip auto-accept for that cycle
+  const skipAutoAcceptRef = useRef(false);
 
   // Only search when not showing a label
   const searchQuery = isLabel ? "" : inputText;
@@ -47,10 +49,11 @@ export default function AirportCombobox({
       return;
     }
 
-    // Auto-accept direct 3-letter IATA entry
-    if (/^[A-Z]{3}$/.test(debouncedQuery)) {
+    // Auto-accept direct 3-letter IATA entry, unless user just clicked to change
+    if (/^[A-Z]{3}$/.test(debouncedQuery) && !skipAutoAcceptRef.current) {
       onChange(debouncedQuery);
     }
+    skipAutoAcceptRef.current = false;
 
     let cancelled = false;
     setLoading(true);
@@ -88,10 +91,12 @@ export default function AirportCombobox({
   }
 
   function handleFocus() {
-    // When re-focusing a label, clear the input so user can type a new search
-    // without triggering an auto-reselect of the existing 3-letter IATA code
+    // When re-focusing a label, show just the IATA code for editing
+    // but skip the auto-accept so the same airport isn't silently re-selected
     if (isLabel) {
-      setInputText("");
+      skipAutoAcceptRef.current = true;
+      const code = inputText.slice(0, 3);
+      setInputText(code);
       setIsLabel(false);
     }
     if (options.length > 0) setOpen(true);
