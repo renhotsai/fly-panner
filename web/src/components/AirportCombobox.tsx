@@ -88,10 +88,10 @@ export default function AirportCombobox({
   }
 
   function handleFocus() {
-    // When re-focusing a label, show just the IATA code so user can edit
+    // When re-focusing a label, clear the input so user can type a new search
+    // without triggering an auto-reselect of the existing 3-letter IATA code
     if (isLabel) {
-      const code = inputText.slice(0, 3);
-      setInputText(code);
+      setInputText("");
       setIsLabel(false);
     }
     if (options.length > 0) setOpen(true);
