@@ -123,6 +123,7 @@ export async function searchFlights(params: {
   bags?: number;
   currency?: string;
   nonStop?: boolean;
+  gl?: string; // Google country code (e.g. "tw", "jp") – affects which routes are surfaced
 }): Promise<FlightOffer[]> {
   const currency = params.currency ?? "USD";
 
@@ -136,6 +137,7 @@ export async function searchFlights(params: {
     currency,
     type: params.returnDate ? "1" : "2", // 1=round trip, 2=one way
     sort_by: "2", // sort by price
+    gl: (params.gl ?? "us").toLowerCase(),
   });
 
   if (params.returnDate) {

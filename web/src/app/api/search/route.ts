@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchFlights } from "@/lib/serpapi";
 import { dateRange } from "@/lib/dateRange";
 import type { FlightOffer, SearchParams, SearchResponse } from "@/lib/types";
+import { AIRPORTS } from "@/lib/airports-data";
 
 const MAX_COMBINATIONS = 50;
 const MAX_WORKERS = 4;
@@ -64,6 +65,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Infer gl (Google country) from the origin airport so SerpAPI returns
+  // routes relevant to the traveller's region (e.g. "tw" for Taiwan shows
+  // Japan/Korea layovers instead of US-centric routes).
+  const originAirport = AIRPORTS.find(
+    (a) => a.iataCode.toUpperCase() === params.origin.toUpperCase()
+  );
+  const gl = originAirport?.countryCode.toLowerCase() ?? "us";
+
   const tasks = datePairs.map(({ dep, ret }) => async () => {
     try {
       return await searchFlights({
@@ -76,6 +85,7 @@ export async function POST(req: NextRequest) {
         bags: params.bags,
         currency: params.currency,
         nonStop: params.nonStop,
+        gl,
       });
     } catch {
       return [] as FlightOffer[];
