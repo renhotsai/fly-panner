@@ -353,7 +353,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
               value={departTo}
               min={departFrom}
               onChange={(e) => {
-                const val = e.target.value;
+                const val = e.target.value < departFrom ? departFrom : e.target.value;
                 setDepartTo(val);
                 // Keep returnFrom at least 1 day after the new departTo
                 if (returnFrom && returnFrom <= val) {
