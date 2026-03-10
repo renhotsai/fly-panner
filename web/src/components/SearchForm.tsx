@@ -569,23 +569,77 @@ export default function SearchForm({ onSearch, loading }: Props) {
       {/* Exclude layover countries */}
       <div className="mb-4 mt-2">
         <Label>Exclude Layover Countries</Label>
+
+        {/* Quick-select common layover hubs */}
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {[
+            { code: "JP", name: "Japan" },
+            { code: "KR", name: "South Korea" },
+            { code: "CN", name: "China" },
+            { code: "HK", name: "Hong Kong" },
+            { code: "SG", name: "Singapore" },
+            { code: "TH", name: "Thailand" },
+            { code: "MY", name: "Malaysia" },
+            { code: "AE", name: "United Arab Emirates" },
+            { code: "TR", name: "Turkey" },
+            { code: "US", name: "United States" },
+            { code: "GB", name: "United Kingdom" },
+            { code: "DE", name: "Germany" },
+            { code: "RU", name: "Russia" },
+          ].map(({ code, name }) => {
+            const isExcluded = excludeLayoverCountries.includes(name) || excludeLayoverCountries.includes(code);
+            return (
+              <button
+                key={code}
+                type="button"
+                onClick={() => {
+                  if (isExcluded) {
+                    setExcludeLayoverCountries((prev) => prev.filter((x) => x !== name && x !== code));
+                  } else {
+                    setExcludeLayoverCountries((prev) => [...prev, name]);
+                  }
+                }}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  isExcluded
+                    ? "bg-red-100 text-red-700 ring-1 ring-red-300 hover:bg-red-200"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}
+              >
+                {isExcluded ? "✕ " : ""}{name}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
-          {/* Tags */}
-          {excludeLayoverCountries.length > 0 && (
+          {/* Custom tags (from text input) */}
+          {excludeLayoverCountries.filter(
+            (c) =>
+              !["Japan","South Korea","China","Hong Kong","Singapore","Thailand","Malaysia",
+                "United Arab Emirates","Turkey","United States","United Kingdom","Germany","Russia",
+                "JP","KR","CN","HK","SG","TH","MY","AE","TR","US","GB","DE","RU"].includes(c)
+          ).length > 0 && (
             <div className="flex flex-wrap gap-1.5 px-3 pt-2.5">
-              {excludeLayoverCountries.map((c) => (
-                <span key={c} className="flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700">
-                  {c}
-                  <button
-                    type="button"
-                    onClick={() => setExcludeLayoverCountries((prev) => prev.filter((x) => x !== c))}
-                    className="ml-0.5 text-sky-400 hover:text-sky-600"
-                    aria-label={`Remove ${c}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+              {excludeLayoverCountries
+                .filter(
+                  (c) =>
+                    !["Japan","South Korea","China","Hong Kong","Singapore","Thailand","Malaysia",
+                      "United Arab Emirates","Turkey","United States","United Kingdom","Germany","Russia",
+                      "JP","KR","CN","HK","SG","TH","MY","AE","TR","US","GB","DE","RU"].includes(c)
+                )
+                .map((c) => (
+                  <span key={c} className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">
+                    {c}
+                    <button
+                      type="button"
+                      onClick={() => setExcludeLayoverCountries((prev) => prev.filter((x) => x !== c))}
+                      className="ml-0.5 text-red-400 hover:text-red-600"
+                      aria-label={`Remove ${c}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
             </div>
           )}
           <div className="flex items-center gap-2 px-3 py-2">
@@ -623,7 +677,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
                   setCountryDropdownOpen(false);
                 }
               }}
-              placeholder="e.g. United States, China — type to search"
+              placeholder="Search more countries to exclude…"
               className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
             />
           </div>
