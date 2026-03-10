@@ -30,7 +30,9 @@ export default function AirportCombobox({
   // inputText: what the <input> displays
   const [inputText, setInputText] = useState(initialValue);
   // isLabel: true when inputText is a formatted label like "YYZ · Toronto"
-  const [isLabel, setIsLabel] = useState(false);
+  // Also treat a bare IATA code (3 uppercase letters) as a label so it
+  // doesn't trigger a search on mount (e.g. after the swap button is pressed)
+  const [isLabel, setIsLabel] = useState(/^[A-Z]{3}$/.test(initialValue));
   const [options, setOptions] = useState<AirportOption[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);

@@ -322,18 +322,22 @@ export default function SearchForm({ onSearch, loading }: Props) {
         {/* Departure range */}
         <div className="flex-1">
           <Label>Depart</Label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white shadow-sm transition focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
             <input
               ref={departFromRef}
               type="date"
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+              className="flex-1 bg-transparent px-4 py-3 text-sm text-slate-800 focus:outline-none"
               value={departFrom}
               min={today}
               onChange={(e) => {
                 const val = e.target.value;
                 setDepartFrom(val);
-                if (returnFrom && returnFrom <= val) {
-                  const next = addDays(val, 1);
+                // Clamp departTo up to departFrom if it fell behind
+                const newDepartTo = departTo < val ? val : departTo;
+                setDepartTo(newDepartTo);
+                // Push return dates forward if they now conflict with newDepartTo
+                if (returnFrom && returnFrom <= newDepartTo) {
+                  const next = addDays(newDepartTo, 1);
                   setReturnFrom(next);
                   if (returnTo && returnTo < next) setReturnTo(next);
                 }
@@ -345,10 +349,20 @@ export default function SearchForm({ onSearch, loading }: Props) {
             <input
               ref={departToRef}
               type="date"
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+              className="flex-1 bg-transparent px-4 py-3 text-sm text-slate-800 focus:outline-none"
               value={departTo}
               min={departFrom}
-              onChange={(e) => { setDepartTo(e.target.value); departToRef.current?.blur(); }}
+              onChange={(e) => {
+                const val = e.target.value < departFrom ? departFrom : e.target.value;
+                setDepartTo(val);
+                // Keep returnFrom at least 1 day after the new departTo
+                if (returnFrom && returnFrom <= val) {
+                  const next = addDays(val, 1);
+                  setReturnFrom(next);
+                  if (returnTo && returnTo < next) setReturnTo(next);
+                }
+                departToRef.current?.blur();
+              }}
             />
           </div>
         </div>
@@ -357,25 +371,49 @@ export default function SearchForm({ onSearch, loading }: Props) {
         {tripType === "roundtrip" && (
           <div className="flex-1">
             <Label>Return</Label>
-            <div className="flex items-center gap-2">
-              <input
-                ref={returnFromRef}
-                type="date"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                value={returnFrom}
-                min={addDays(departFrom, 1)}
-                onChange={(e) => { setReturnFrom(e.target.value); returnFromRef.current?.blur(); }}
-                required
-              />
+            <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white shadow-sm transition focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
+              <div className="group relative flex-1">
+                <input
+                  ref={returnFromRef}
+                  type="date"
+                  className={`w-full bg-transparent px-4 py-3 text-sm focus:outline-none group-focus-within:text-slate-800 ${returnFrom ? "text-slate-800" : "text-transparent"}`}
+                  value={returnFrom}
+                  min={addDays(departTo || departFrom, 1)}
+                  onChange={(e) => {
+                    const minReturn = addDays(departTo || departFrom, 1);
+                    const val = e.target.value < minReturn ? minReturn : e.target.value;
+                    setReturnFrom(val);
+                    returnFromRef.current?.blur();
+                  }}
+                  required
+                />
+                {!returnFrom && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center px-4 text-sm text-slate-400 group-focus-within:hidden">
+                    From
+                  </span>
+                )}
+              </div>
               <span className="shrink-0 text-slate-300">→</span>
-              <input
-                ref={returnToRef}
-                type="date"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                value={returnTo}
-                min={returnFrom || departFrom}
-                onChange={(e) => { setReturnTo(e.target.value); returnToRef.current?.blur(); }}
-              />
+              <div className="group relative flex-1">
+                <input
+                  ref={returnToRef}
+                  type="date"
+                  className={`w-full bg-transparent px-4 py-3 text-sm focus:outline-none group-focus-within:text-slate-800 ${returnTo ? "text-slate-800" : "text-transparent"}`}
+                  value={returnTo}
+                  min={returnFrom || addDays(departTo || departFrom, 1)}
+                  onChange={(e) => {
+                    const minReturn = returnFrom || addDays(departTo || departFrom, 1);
+                    const val = e.target.value < minReturn ? minReturn : e.target.value;
+                    setReturnTo(val);
+                    returnToRef.current?.blur();
+                  }}
+                />
+                {!returnTo && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center px-4 text-sm text-slate-400 group-focus-within:hidden">
+                    To
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}
