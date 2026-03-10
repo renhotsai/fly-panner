@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchFlights } from "@/lib/duffel";
+import { searchFlights } from "@/lib/serpapi";
 import { dateRange } from "@/lib/dateRange";
 import type { FlightOffer, SearchParams, SearchResponse } from "@/lib/types";
 
@@ -32,15 +32,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const apiKey = process.env.DUFFEL_API_KEY ?? "";
+  const apiKey = process.env.SERPAPI_KEY ?? "";
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Duffel API key is not configured on the server." },
+      { error: "SerpAPI key is not configured on the server." },
       { status: 500 }
     );
   }
 
-  // Build date pairs (Duffel requires specific dates, not ranges)
+  // Build date pairs (SerpAPI requires specific dates, not ranges)
   const isRoundTrip = !!params.returnFrom;
   const datePairs: { dep: string; ret?: string }[] = [];
 

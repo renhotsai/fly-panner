@@ -51,6 +51,16 @@ function downloadCsv(offers: FlightOffer[]) {
   URL.revokeObjectURL(a.href);
 }
 
+// ── Google Flights booking URL ────────────────────────────────────────
+function buildGoogleFlightsUrl(offer: FlightOffer): string {
+  const { origin, destination } = offer.outbound;
+  const dep = offer.departureDate;
+  if (offer.returnDate) {
+    return `https://www.google.com/travel/flights?hl=en&q=flights+from+${origin}+to+${destination}+${dep}+return+${offer.returnDate}`;
+  }
+  return `https://www.google.com/travel/flights?hl=en&q=flights+from+${origin}+to+${destination}+${dep}`;
+}
+
 // ── Route visualizer ──────────────────────────────────────────────────
 function RouteVisualizer({ it }: { it: FlightItinerary }) {
   const depTime = fmtTime(it.segments[0].departureTime);
@@ -166,6 +176,15 @@ function FlightCard({ offer, rank }: { offer: FlightOffer; rank: number }) {
               {offer.seatsRemaining} seat{offer.seatsRemaining !== 1 ? "s" : ""} left
             </div>
           )}
+
+          <a
+            href={buildGoogleFlightsUrl(offer)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-block w-full rounded-xl bg-sky-500 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-sky-600"
+          >
+            Book →
+          </a>
         </div>
       </div>
     </div>
@@ -282,7 +301,7 @@ export default function ResultsTable({ offers, combinations }: Props) {
       </div>
 
       <p className="mt-4 text-center text-xs text-slate-400">
-        Prices per person · All taxes included · Powered by Amadeus
+        Prices per person · All taxes included · Powered by Google Flights
       </p>
     </div>
   );
