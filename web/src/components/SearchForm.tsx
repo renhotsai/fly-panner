@@ -4,6 +4,12 @@ import { useState, useMemo, useRef } from "react";
 import type { SearchParams } from "@/lib/types";
 import { rangeLength } from "@/lib/dateRange";
 import AirportCombobox from "./AirportCombobox";
+import { AIRPORTS } from "@/lib/airports-data";
+
+// Deduplicated list of countries from airport data
+const ALL_COUNTRIES: { code: string; name: string }[] = Array.from(
+  new Map(AIRPORTS.map((a) => [a.countryCode, { code: a.countryCode, name: a.countryName }])).values()
+).sort((a, b) => a.name.localeCompare(b.name));
 
 interface Props {
   onSearch: (params: SearchParams) => void;
@@ -200,6 +206,9 @@ export default function SearchForm({ onSearch, loading }: Props) {
   const [error, setError] = useState("");
   const [excludeCountryInput, setExcludeCountryInput] = useState("");
   const [excludeLayoverCountries, setExcludeLayoverCountries] = useState<string[]>([]);
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [countryActiveIdx, setCountryActiveIdx] = useState(-1);
+  const countryDropdownRef = useRef<HTMLUListElement>(null);
   const departFromRef = useRef<HTMLInputElement>(null);
   const departToRef = useRef<HTMLInputElement>(null);
   const returnFromRef = useRef<HTMLInputElement>(null);
@@ -212,6 +221,27 @@ export default function SearchForm({ onSearch, loading }: Props) {
     const retCount = rangeLength(returnFrom, returnTo || returnFrom);
     return depCount * retCount;
   }, [tripType, departFrom, departTo, returnFrom, returnTo]);
+
+  // Country suggestions filtered by current input
+  const countrySuggestions = useMemo(() => {
+    const q = excludeCountryInput.trim().toLowerCase();
+    if (!q) return [];
+    return ALL_COUNTRIES.filter(
+      (c) =>
+        !excludeLayoverCountries.includes(c.name) &&
+        !excludeLayoverCountries.includes(c.code) &&
+        (c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
+    ).slice(0, 8);
+  }, [excludeCountryInput, excludeLayoverCountries]);
+
+  function addExcludeCountry(country: { code: string; name: string }) {
+    if (!excludeLayoverCountries.includes(country.name)) {
+      setExcludeLayoverCountries((prev) => [...prev, country.name]);
+    }
+    setExcludeCountryInput("");
+    setCountryDropdownOpen(false);
+    setCountryActiveIdx(-1);
+  }
 
   function swap() {
     setOrigin(destination);
@@ -539,7 +569,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
       {/* Exclude layover countries */}
       <div className="mb-4 mt-2">
         <Label>Exclude Layover Countries</Label>
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
+        <div className="relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
           {/* Tags */}
           {excludeLayoverCountries.length > 0 && (
             <div className="flex flex-wrap gap-1.5 px-3 pt-2.5">
@@ -562,36 +592,61 @@ export default function SearchForm({ onSearch, loading }: Props) {
             <input
               type="text"
               value={excludeCountryInput}
-              onChange={(e) => setExcludeCountryInput(e.target.value)}
+              onChange={(e) => {
+                setExcludeCountryInput(e.target.value);
+                setCountryDropdownOpen(true);
+                setCountryActiveIdx(-1);
+              }}
+              onFocus={() => { if (excludeCountryInput.trim()) setCountryDropdownOpen(true); }}
+              onBlur={() => setTimeout(() => setCountryDropdownOpen(false), 150)}
               onKeyDown={(e) => {
-                if ((e.key === "Enter" || e.key === ",") && excludeCountryInput.trim()) {
+                if (e.key === "ArrowDown") {
                   e.preventDefault();
-                  const val = excludeCountryInput.trim().replace(/,$/, "");
-                  if (val && !excludeLayoverCountries.includes(val)) {
-                    setExcludeLayoverCountries((prev) => [...prev, val]);
+                  setCountryActiveIdx((i) => Math.min(i + 1, countrySuggestions.length - 1));
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setCountryActiveIdx((i) => Math.max(i - 1, 0));
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (countryActiveIdx >= 0 && countrySuggestions[countryActiveIdx]) {
+                    addExcludeCountry(countrySuggestions[countryActiveIdx]);
+                  } else if (excludeCountryInput.trim()) {
+                    // fallback: add raw text
+                    const val = excludeCountryInput.trim();
+                    if (!excludeLayoverCountries.includes(val)) {
+                      setExcludeLayoverCountries((prev) => [...prev, val]);
+                    }
+                    setExcludeCountryInput("");
+                    setCountryDropdownOpen(false);
                   }
-                  setExcludeCountryInput("");
+                } else if (e.key === "Escape") {
+                  setCountryDropdownOpen(false);
                 }
               }}
-              placeholder="e.g. China, Russia — press Enter to add"
+              placeholder="e.g. United States, China — type to search"
               className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
             />
-            {excludeCountryInput.trim() && (
-              <button
-                type="button"
-                onClick={() => {
-                  const val = excludeCountryInput.trim();
-                  if (val && !excludeLayoverCountries.includes(val)) {
-                    setExcludeLayoverCountries((prev) => [...prev, val]);
-                  }
-                  setExcludeCountryInput("");
-                }}
-                className="shrink-0 rounded-lg bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-600 hover:bg-sky-200"
-              >
-                Add
-              </button>
-            )}
           </div>
+          {/* Country autocomplete dropdown */}
+          {countryDropdownOpen && countrySuggestions.length > 0 && (
+            <ul
+              ref={countryDropdownRef}
+              className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"
+            >
+              {countrySuggestions.map((c, i) => (
+                <li
+                  key={c.code}
+                  onMouseDown={() => addExcludeCountry(c)}
+                  className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm transition ${
+                    i === countryActiveIdx ? "bg-sky-50" : "hover:bg-slate-50"
+                  } ${i > 0 ? "border-t border-slate-50" : ""}`}
+                >
+                  <span className="w-8 shrink-0 font-bold text-slate-500">{c.code}</span>
+                  <span className="text-slate-700">{c.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
