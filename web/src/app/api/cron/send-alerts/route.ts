@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
-import { searchFlights } from "@/lib/duffel";
+import { searchFlights } from "@/lib/serpapi";
 import { dateRange } from "@/lib/dateRange";
 import type { FlightOffer } from "@/lib/types";
 
@@ -111,7 +111,7 @@ function buildEmail(offers: FlightOffer[], sub: {
       </div>
     </div>
     <div style="padding:16px 32px;border-top:1px solid #f1f5f9;font-size:12px;color:#94a3b8;text-align:center">
-      Powered by Duffel &nbsp;·&nbsp;
+      Powered by Google Flights &nbsp;·&nbsp;
       <a href="${unsubUrl}" style="color:#94a3b8">取消訂閱</a>
     </div>
   </div>
@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const apiKey = process.env.DUFFEL_API_KEY ?? "";
+  const apiKey = process.env.SERPAPI_KEY ?? "";
   const resendKey = process.env.RESEND_API_KEY ?? "";
   const fromEmail = process.env.RESEND_FROM ?? "alerts@fly-panner.com";
 
