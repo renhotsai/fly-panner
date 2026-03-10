@@ -379,7 +379,12 @@ export default function SearchForm({ onSearch, loading }: Props) {
                   className={`w-full bg-transparent px-4 py-3 text-sm focus:outline-none group-focus-within:text-slate-800 ${returnFrom ? "text-slate-800" : "text-transparent"}`}
                   value={returnFrom}
                   min={addDays(departTo || departFrom, 1)}
-                  onChange={(e) => { setReturnFrom(e.target.value); returnFromRef.current?.blur(); }}
+                  onChange={(e) => {
+                    const minReturn = addDays(departTo || departFrom, 1);
+                    const val = e.target.value < minReturn ? minReturn : e.target.value;
+                    setReturnFrom(val);
+                    returnFromRef.current?.blur();
+                  }}
                   required
                 />
                 {!returnFrom && (
@@ -395,8 +400,13 @@ export default function SearchForm({ onSearch, loading }: Props) {
                   type="date"
                   className={`w-full bg-transparent px-4 py-3 text-sm focus:outline-none group-focus-within:text-slate-800 ${returnTo ? "text-slate-800" : "text-transparent"}`}
                   value={returnTo}
-                  min={returnFrom || departFrom}
-                  onChange={(e) => { setReturnTo(e.target.value); returnToRef.current?.blur(); }}
+                  min={returnFrom || addDays(departTo || departFrom, 1)}
+                  onChange={(e) => {
+                    const minReturn = returnFrom || addDays(departTo || departFrom, 1);
+                    const val = e.target.value < minReturn ? minReturn : e.target.value;
+                    setReturnTo(val);
+                    returnToRef.current?.blur();
+                  }}
                 />
                 {!returnTo && (
                   <span className="pointer-events-none absolute inset-0 flex items-center px-4 text-sm text-slate-400 group-focus-within:hidden">
