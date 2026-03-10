@@ -38,9 +38,11 @@ export interface SearchParams {
   returnFrom: string;   // YYYY-MM-DD (empty = one-way)
   returnTo: string;     // YYYY-MM-DD (empty = one-way)
   adults: number;
+  bags?: number;        // number of checked bags (0-3)
   currency: string;
   topN: number;
   nonStop: boolean;
+  excludeLayoverCountries?: string[]; // country names or codes to exclude from layovers
 }
 
 export interface AirportOption {

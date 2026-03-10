@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
         departureDate: dep,
         returnDate: ret,
         adults: params.adults,
+        bags: params.bags,
         currency: params.currency,
         nonStop: params.nonStop,
       });

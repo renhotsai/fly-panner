@@ -193,10 +193,13 @@ export default function SearchForm({ onSearch, loading }: Props) {
   const [returnFrom, setReturnFrom] = useState("");
   const [returnTo, setReturnTo] = useState("");
   const [adults, setAdults] = useState(1);
+  const [bags, setBags] = useState(0);
   const [currency, setCurrency] = useState("USD");
   const [topN, setTopN] = useState(10);
   const [nonStop, setNonStop] = useState(false);
   const [error, setError] = useState("");
+  const [excludeCountryInput, setExcludeCountryInput] = useState("");
+  const [excludeLayoverCountries, setExcludeLayoverCountries] = useState<string[]>([]);
   const departFromRef = useRef<HTMLInputElement>(null);
   const departToRef = useRef<HTMLInputElement>(null);
   const returnFromRef = useRef<HTMLInputElement>(null);
@@ -234,9 +237,11 @@ export default function SearchForm({ onSearch, loading }: Props) {
       returnFrom: tripType === "roundtrip" ? returnFrom : "",
       returnTo: tripType === "roundtrip" ? returnTo || returnFrom : "",
       adults,
+      bags,
       currency,
       topN,
       nonStop,
+      excludeLayoverCountries: excludeLayoverCountries.length > 0 ? excludeLayoverCountries : undefined,
     });
   }
 
@@ -455,6 +460,35 @@ export default function SearchForm({ onSearch, loading }: Props) {
           </div>
         </div>
 
+        {/* Bags counter */}
+        <div>
+          <Label>Checked Bags</Label>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setBags((n) => Math.max(0, n - 1))}
+              disabled={bags <= 0}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            >
+              −
+            </button>
+            <span className="w-5 text-center text-sm font-semibold text-slate-700">
+              {bags}
+            </span>
+            <button
+              type="button"
+              onClick={() => setBags((n) => Math.min(3, n + 1))}
+              disabled={bags >= 3}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            >
+              +
+            </button>
+            <span className="ml-1 text-sm text-slate-400">
+              bag{bags !== 1 ? "s" : ""}
+            </span>
+          </div>
+        </div>
+
         {/* Currency */}
         <div>
           <Label>Currency</Label>
@@ -500,6 +534,69 @@ export default function SearchForm({ onSearch, loading }: Props) {
         <p className="ml-auto self-end pb-2.5 text-xs text-slate-400">
           ~{combinations} date combination{combinations !== 1 ? "s" : ""}
         </p>
+      </div>
+
+      {/* Exclude layover countries */}
+      <div className="mb-4 mt-2">
+        <Label>Exclude Layover Countries</Label>
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
+          {/* Tags */}
+          {excludeLayoverCountries.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 px-3 pt-2.5">
+              {excludeLayoverCountries.map((c) => (
+                <span key={c} className="flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700">
+                  {c}
+                  <button
+                    type="button"
+                    onClick={() => setExcludeLayoverCountries((prev) => prev.filter((x) => x !== c))}
+                    className="ml-0.5 text-sky-400 hover:text-sky-600"
+                    aria-label={`Remove ${c}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-2 px-3 py-2">
+            <input
+              type="text"
+              value={excludeCountryInput}
+              onChange={(e) => setExcludeCountryInput(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === ",") && excludeCountryInput.trim()) {
+                  e.preventDefault();
+                  const val = excludeCountryInput.trim().replace(/,$/, "");
+                  if (val && !excludeLayoverCountries.includes(val)) {
+                    setExcludeLayoverCountries((prev) => [...prev, val]);
+                  }
+                  setExcludeCountryInput("");
+                }
+              }}
+              placeholder="e.g. China, Russia — press Enter to add"
+              className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
+            />
+            {excludeCountryInput.trim() && (
+              <button
+                type="button"
+                onClick={() => {
+                  const val = excludeCountryInput.trim();
+                  if (val && !excludeLayoverCountries.includes(val)) {
+                    setExcludeLayoverCountries((prev) => [...prev, val]);
+                  }
+                  setExcludeCountryInput("");
+                }}
+                className="shrink-0 rounded-lg bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-600 hover:bg-sky-200"
+              >
+                Add
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom row: search button */}
+      <div className="flex flex-wrap items-end gap-4">
 
         {/* Search button */}
         <button
