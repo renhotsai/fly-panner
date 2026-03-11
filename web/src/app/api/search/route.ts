@@ -65,13 +65,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Infer gl (Google country) from the origin airport so SerpAPI returns
-  // routes relevant to the traveller's region (e.g. "tw" for Taiwan shows
-  // Japan/Korea layovers instead of US-centric routes).
-  const originAirport = AIRPORTS.find(
-    (a) => a.iataCode.toUpperCase() === params.origin.toUpperCase()
-  );
-  const gl = originAirport?.countryCode.toLowerCase() ?? "us";
+  // Infer gl (Google country) from origin or destination airport so SerpAPI
+  // returns routes relevant to the traveller's region. Prefer origin; if origin
+  // is US (or unknown), fall back to destination's country.
+  const findCountry = (iata: string) =>
+    AIRPORTS.find((a) => a.iataCode.toUpperCase() === iata.toUpperCase())?.countryCode.toLowerCase();
+
+  const originCountry = findCountry(params.origin);
+  const destCountry = findCountry(params.destination);
+  const gl = (originCountry && originCountry !== "us" ? originCountry : destCountry) ?? "us";
 
   const tasks = datePairs.map(({ dep, ret }) => async () => {
     try {
