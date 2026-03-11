@@ -43,6 +43,7 @@ export interface SearchParams {
   topN: number;
   nonStop: boolean;
   excludeLayoverCountries?: string[]; // country names or codes to exclude from layovers
+  searchRegion?: string; // gl parameter override (e.g. "tw"); empty = auto-infer from airports
 }
 
 export interface AirportOption {

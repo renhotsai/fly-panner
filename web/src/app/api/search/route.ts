@@ -65,15 +65,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Infer gl (Google country) from origin or destination airport so SerpAPI
-  // returns routes relevant to the traveller's region. Prefer origin; if origin
-  // is US (or unknown), fall back to destination's country.
-  const findCountry = (iata: string) =>
-    AIRPORTS.find((a) => a.iataCode.toUpperCase() === iata.toUpperCase())?.countryCode.toLowerCase();
-
-  const originCountry = findCountry(params.origin);
-  const destCountry = findCountry(params.destination);
-  const gl = (originCountry && originCountry !== "us" ? originCountry : destCountry) ?? "us";
+  // Determine gl (Google Flights market). Use the user's explicit choice when
+  // provided; otherwise infer from airports (prefer origin; fall back to
+  // destination if origin is US or unknown).
+  let gl: string;
+  if (params.searchRegion) {
+    gl = params.searchRegion.toLowerCase();
+  } else {
+    const findCountry = (iata: string) =>
+      AIRPORTS.find((a) => a.iataCode.toUpperCase() === iata.toUpperCase())?.countryCode.toLowerCase();
+    const originCountry = findCountry(params.origin);
+    const destCountry = findCountry(params.destination);
+    gl = (originCountry && originCountry !== "us" ? originCountry : destCountry) ?? "us";
+  }
 
   const tasks = datePairs.map(({ dep, ret }) => async () => {
     try {

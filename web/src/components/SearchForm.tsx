@@ -208,6 +208,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
   const [excludeLayoverCountries, setExcludeLayoverCountries] = useState<string[]>([]);
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [countryActiveIdx, setCountryActiveIdx] = useState(-1);
+  const [searchRegion, setSearchRegion] = useState("");
   const countryDropdownRef = useRef<HTMLUListElement>(null);
   const departFromRef = useRef<HTMLInputElement>(null);
   const departToRef = useRef<HTMLInputElement>(null);
@@ -272,6 +273,7 @@ export default function SearchForm({ onSearch, loading }: Props) {
       topN,
       nonStop,
       excludeLayoverCountries: excludeLayoverCountries.length > 0 ? excludeLayoverCountries : undefined,
+      searchRegion: searchRegion || undefined,
     });
   }
 
@@ -701,6 +703,51 @@ export default function SearchForm({ onSearch, loading }: Props) {
               ))}
             </ul>
           )}
+        </div>
+      </div>
+
+      {/* Transfer Preferences */}
+      <div className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+        <Label>Transfer Preferences</Label>
+
+        {/* Search Region */}
+        <div>
+          <p className="mb-2 text-[11px] text-slate-400">
+            Search Region — determines which market Google Flights uses to find routes.
+            <span className="ml-1 font-medium text-slate-500">Auto</span> infers from your airports.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { code: "", label: "Auto" },
+              { code: "tw", label: "Taiwan" },
+              { code: "jp", label: "Japan" },
+              { code: "kr", label: "South Korea" },
+              { code: "hk", label: "Hong Kong" },
+              { code: "sg", label: "Singapore" },
+              { code: "cn", label: "China" },
+              { code: "th", label: "Thailand" },
+              { code: "us", label: "United States" },
+              { code: "gb", label: "United Kingdom" },
+              { code: "de", label: "Germany" },
+              { code: "fr", label: "France" },
+              { code: "au", label: "Australia" },
+              { code: "ae", label: "UAE" },
+            ].map(({ code, label }) => (
+              <button
+                key={code || "auto"}
+                type="button"
+                onClick={() => setSearchRegion(code)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  searchRegion === code
+                    ? "bg-sky-500 text-white shadow-sm"
+                    : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                {label}
+                {code && <span className="ml-1 opacity-50 uppercase">{code}</span>}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
