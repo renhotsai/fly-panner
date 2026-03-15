@@ -4,7 +4,42 @@ import { useState } from "react";
 import SearchForm from "@/components/SearchForm";
 import ResultsTable, { SkeletonCards } from "@/components/ResultsTable";
 import SubscribeForm from "@/components/SubscribeForm";
-import type { FlightOffer, SearchParams } from "@/lib/types";
+import type { FlightItinerary, FlightOffer, SearchParams } from "@/lib/types";
+import { AIRPORTS } from "@/lib/airports-data";
+
+// Build IATA -> { countryCode, countryName } lookup from static airport data
+const AIRPORT_COUNTRY: Record<string, { code: string; name: string }> = {};
+for (const a of AIRPORTS) {
+  AIRPORT_COUNTRY[a.iataCode.toUpperCase()] = {
+    code: a.countryCode.toUpperCase(),
+    name: a.countryName.toLowerCase(),
+  };
+}
+
+function getLayoverAirports(it: FlightItinerary): string[] {
+  // Layover airports are arrival airports of all segments except the last
+  return it.segments.slice(0, -1).map((s) => s.arrivalAirport.toUpperCase());
+}
+
+function hasExcludedLayover(offer: FlightOffer, excluded: string[]): boolean {
+  if (!excluded.length) return false;
+  const normalized = excluded.map((c) => c.trim().toLowerCase());
+
+  function itineraryHasExcluded(it: FlightItinerary): boolean {
+    const layovers = getLayoverAirports(it);
+    return layovers.some((iata) => {
+      const info = AIRPORT_COUNTRY[iata];
+      if (!info) return false; // unknown airport — don't exclude
+      return normalized.some(
+        (ex) => ex === info.code.toLowerCase() || ex === info.name
+      );
+    });
+  }
+
+  if (itineraryHasExcluded(offer.outbound)) return true;
+  if (offer.inbound && itineraryHasExcluded(offer.inbound)) return true;
+  return false;
+}
 
 interface SearchState {
   offers: FlightOffer[];
@@ -31,7 +66,11 @@ export default function HomePage() {
       if (!res.ok) {
         setResult({ offers: [], combinations: 0, error: data.error ?? "Unknown error" });
       } else {
-        setResult({ offers: data.offers, combinations: data.combinations, error: null });
+        const excluded = params.excludeLayoverCountries ?? [];
+        const filtered = (data.offers as FlightOffer[]).filter(
+          (o) => !hasExcludedLayover(o, excluded)
+        );
+        setResult({ offers: filtered, combinations: data.combinations, error: null });
       }
     } catch (err) {
       setResult({

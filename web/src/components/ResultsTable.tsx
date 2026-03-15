@@ -66,6 +66,16 @@ function RouteVisualizer({ it }: { it: FlightItinerary }) {
   const depTime = fmtTime(it.segments[0].departureTime);
   const arrTime = fmtTime(it.segments[it.segments.length - 1].arrivalTime);
 
+  // Layover airports: arrival airports of all segments except the last
+  const layoverAirports = it.segments.slice(0, -1).map((seg, idx) => ({
+    iata: seg.arrivalAirport,
+    arrTime: fmtTime(seg.arrivalTime),
+    depTime: fmtTime(it.segments[idx + 1].departureTime),
+    layoverMinutes:
+      (new Date(it.segments[idx + 1].departureTime).getTime() -
+        new Date(seg.arrivalTime).getTime()) / 60_000,
+  }));
+
   return (
     <div className="flex items-center gap-3">
       {/* Origin */}
@@ -74,15 +84,24 @@ function RouteVisualizer({ it }: { it: FlightItinerary }) {
         <div className="text-sm tabular-nums text-slate-500">{depTime}</div>
       </div>
 
-      {/* Line */}
+      {/* Line with layover stops */}
       <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5">
         <span className="text-[11px] text-slate-400">{fmt(it.totalDurationMinutes)}</span>
         <div className="flex w-full items-center gap-1">
           <div className="h-px flex-1 bg-slate-200" />
-          {it.stops > 0 &&
-            Array.from({ length: it.stops }).map((_, i) => (
-              <span key={i} className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
-            ))}
+          {layoverAirports.map((stop, i) => (
+            <div key={i} className="group relative flex flex-col items-center">
+              <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+              {/* Tooltip with layover details */}
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-center text-[11px] text-white shadow-lg group-hover:block">
+                <div className="font-bold">{stop.iata}</div>
+                <div className="text-slate-300">{stop.arrTime} → {stop.depTime}</div>
+                {stop.layoverMinutes > 0 && (
+                  <div className="text-amber-300">{fmt(Math.round(stop.layoverMinutes))} layover</div>
+                )}
+              </div>
+            </div>
+          ))}
           <div className="h-px flex-1 bg-slate-200" />
         </div>
         <span className="text-[11px] text-slate-400">
@@ -90,7 +109,7 @@ function RouteVisualizer({ it }: { it: FlightItinerary }) {
             <span className="font-medium text-emerald-600">Direct</span>
           ) : (
             <span className="font-medium text-amber-600">
-              {it.stops} stop{it.stops > 1 ? "s" : ""}
+              via {layoverAirports.map((s) => s.iata).join(", ")}
             </span>
           )}
           {" · "}

@@ -4,6 +4,12 @@ import { useState, useMemo, useRef } from "react";
 import type { SearchParams } from "@/lib/types";
 import { rangeLength } from "@/lib/dateRange";
 import AirportCombobox from "./AirportCombobox";
+import { AIRPORTS } from "@/lib/airports-data";
+
+// Deduplicated list of countries from airport data
+const ALL_COUNTRIES: { code: string; name: string }[] = Array.from(
+  new Map(AIRPORTS.map((a) => [a.countryCode, { code: a.countryCode, name: a.countryName }])).values()
+).sort((a, b) => a.name.localeCompare(b.name));
 
 interface Props {
   onSearch: (params: SearchParams) => void;
@@ -193,10 +199,17 @@ export default function SearchForm({ onSearch, loading }: Props) {
   const [returnFrom, setReturnFrom] = useState("");
   const [returnTo, setReturnTo] = useState("");
   const [adults, setAdults] = useState(1);
+  const [bags, setBags] = useState(0);
   const [currency, setCurrency] = useState("USD");
   const [topN, setTopN] = useState(10);
   const [nonStop, setNonStop] = useState(false);
   const [error, setError] = useState("");
+  const [excludeCountryInput, setExcludeCountryInput] = useState("");
+  const [excludeLayoverCountries, setExcludeLayoverCountries] = useState<string[]>([]);
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [countryActiveIdx, setCountryActiveIdx] = useState(-1);
+  const [searchRegion, setSearchRegion] = useState("");
+  const countryDropdownRef = useRef<HTMLUListElement>(null);
   const departFromRef = useRef<HTMLInputElement>(null);
   const departToRef = useRef<HTMLInputElement>(null);
   const returnFromRef = useRef<HTMLInputElement>(null);
@@ -209,6 +222,27 @@ export default function SearchForm({ onSearch, loading }: Props) {
     const retCount = rangeLength(returnFrom, returnTo || returnFrom);
     return depCount * retCount;
   }, [tripType, departFrom, departTo, returnFrom, returnTo]);
+
+  // Country suggestions filtered by current input
+  const countrySuggestions = useMemo(() => {
+    const q = excludeCountryInput.trim().toLowerCase();
+    if (!q) return [];
+    return ALL_COUNTRIES.filter(
+      (c) =>
+        !excludeLayoverCountries.includes(c.name) &&
+        !excludeLayoverCountries.includes(c.code) &&
+        (c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
+    ).slice(0, 8);
+  }, [excludeCountryInput, excludeLayoverCountries]);
+
+  function addExcludeCountry(country: { code: string; name: string }) {
+    if (!excludeLayoverCountries.includes(country.name)) {
+      setExcludeLayoverCountries((prev) => [...prev, country.name]);
+    }
+    setExcludeCountryInput("");
+    setCountryDropdownOpen(false);
+    setCountryActiveIdx(-1);
+  }
 
   function swap() {
     setOrigin(destination);
@@ -234,9 +268,12 @@ export default function SearchForm({ onSearch, loading }: Props) {
       returnFrom: tripType === "roundtrip" ? returnFrom : "",
       returnTo: tripType === "roundtrip" ? returnTo || returnFrom : "",
       adults,
+      bags,
       currency,
       topN,
       nonStop,
+      excludeLayoverCountries: excludeLayoverCountries.length > 0 ? excludeLayoverCountries : undefined,
+      searchRegion: searchRegion || undefined,
     });
   }
 
@@ -455,6 +492,35 @@ export default function SearchForm({ onSearch, loading }: Props) {
           </div>
         </div>
 
+        {/* Bags counter */}
+        <div>
+          <Label>Checked Bags</Label>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setBags((n) => Math.max(0, n - 1))}
+              disabled={bags <= 0}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            >
+              −
+            </button>
+            <span className="w-5 text-center text-sm font-semibold text-slate-700">
+              {bags}
+            </span>
+            <button
+              type="button"
+              onClick={() => setBags((n) => Math.min(3, n + 1))}
+              disabled={bags >= 3}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            >
+              +
+            </button>
+            <span className="ml-1 text-sm text-slate-400">
+              bag{bags !== 1 ? "s" : ""}
+            </span>
+          </div>
+        </div>
+
         {/* Currency */}
         <div>
           <Label>Currency</Label>
@@ -500,6 +566,193 @@ export default function SearchForm({ onSearch, loading }: Props) {
         <p className="ml-auto self-end pb-2.5 text-xs text-slate-400">
           ~{combinations} date combination{combinations !== 1 ? "s" : ""}
         </p>
+      </div>
+
+      {/* Exclude layover countries */}
+      <div className="mb-4 mt-2">
+        <Label>Exclude Layover Countries</Label>
+
+        {/* Quick-select common layover hubs */}
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {[
+            { code: "JP", name: "Japan" },
+            { code: "KR", name: "South Korea" },
+            { code: "CN", name: "China" },
+            { code: "HK", name: "Hong Kong" },
+            { code: "SG", name: "Singapore" },
+            { code: "TH", name: "Thailand" },
+            { code: "MY", name: "Malaysia" },
+            { code: "AE", name: "United Arab Emirates" },
+            { code: "TR", name: "Turkey" },
+            { code: "US", name: "United States" },
+            { code: "GB", name: "United Kingdom" },
+            { code: "DE", name: "Germany" },
+            { code: "RU", name: "Russia" },
+          ].map(({ code, name }) => {
+            const isExcluded = excludeLayoverCountries.includes(name) || excludeLayoverCountries.includes(code);
+            return (
+              <button
+                key={code}
+                type="button"
+                onClick={() => {
+                  if (isExcluded) {
+                    setExcludeLayoverCountries((prev) => prev.filter((x) => x !== name && x !== code));
+                  } else {
+                    setExcludeLayoverCountries((prev) => [...prev, name]);
+                  }
+                }}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  isExcluded
+                    ? "bg-red-100 text-red-700 ring-1 ring-red-300 hover:bg-red-200"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}
+              >
+                {isExcluded ? "✕ " : ""}{name}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
+          {/* Custom tags (from text input) */}
+          {excludeLayoverCountries.filter(
+            (c) =>
+              !["Japan","South Korea","China","Hong Kong","Singapore","Thailand","Malaysia",
+                "United Arab Emirates","Turkey","United States","United Kingdom","Germany","Russia",
+                "JP","KR","CN","HK","SG","TH","MY","AE","TR","US","GB","DE","RU"].includes(c)
+          ).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 px-3 pt-2.5">
+              {excludeLayoverCountries
+                .filter(
+                  (c) =>
+                    !["Japan","South Korea","China","Hong Kong","Singapore","Thailand","Malaysia",
+                      "United Arab Emirates","Turkey","United States","United Kingdom","Germany","Russia",
+                      "JP","KR","CN","HK","SG","TH","MY","AE","TR","US","GB","DE","RU"].includes(c)
+                )
+                .map((c) => (
+                  <span key={c} className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">
+                    {c}
+                    <button
+                      type="button"
+                      onClick={() => setExcludeLayoverCountries((prev) => prev.filter((x) => x !== c))}
+                      className="ml-0.5 text-red-400 hover:text-red-600"
+                      aria-label={`Remove ${c}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+            </div>
+          )}
+          <div className="flex items-center gap-2 px-3 py-2">
+            <input
+              type="text"
+              value={excludeCountryInput}
+              onChange={(e) => {
+                setExcludeCountryInput(e.target.value);
+                setCountryDropdownOpen(true);
+                setCountryActiveIdx(-1);
+              }}
+              onFocus={() => { if (excludeCountryInput.trim()) setCountryDropdownOpen(true); }}
+              onBlur={() => setTimeout(() => setCountryDropdownOpen(false), 150)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setCountryActiveIdx((i) => Math.min(i + 1, countrySuggestions.length - 1));
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setCountryActiveIdx((i) => Math.max(i - 1, 0));
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (countryActiveIdx >= 0 && countrySuggestions[countryActiveIdx]) {
+                    addExcludeCountry(countrySuggestions[countryActiveIdx]);
+                  } else if (excludeCountryInput.trim()) {
+                    // fallback: add raw text
+                    const val = excludeCountryInput.trim();
+                    if (!excludeLayoverCountries.includes(val)) {
+                      setExcludeLayoverCountries((prev) => [...prev, val]);
+                    }
+                    setExcludeCountryInput("");
+                    setCountryDropdownOpen(false);
+                  }
+                } else if (e.key === "Escape") {
+                  setCountryDropdownOpen(false);
+                }
+              }}
+              placeholder="Search more countries to exclude…"
+              className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
+            />
+          </div>
+          {/* Country autocomplete dropdown */}
+          {countryDropdownOpen && countrySuggestions.length > 0 && (
+            <ul
+              ref={countryDropdownRef}
+              className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"
+            >
+              {countrySuggestions.map((c, i) => (
+                <li
+                  key={c.code}
+                  onMouseDown={() => addExcludeCountry(c)}
+                  className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm transition ${
+                    i === countryActiveIdx ? "bg-sky-50" : "hover:bg-slate-50"
+                  } ${i > 0 ? "border-t border-slate-50" : ""}`}
+                >
+                  <span className="w-8 shrink-0 font-bold text-slate-500">{c.code}</span>
+                  <span className="text-slate-700">{c.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Transfer Preferences */}
+      <div className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+        <Label>Transfer Preferences</Label>
+
+        {/* Search Region */}
+        <div>
+          <p className="mb-2 text-[11px] text-slate-400">
+            Search Region — determines which market Google Flights uses to find routes.
+            <span className="ml-1 font-medium text-slate-500">Auto</span> infers from your airports.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { code: "", label: "Auto" },
+              { code: "tw", label: "Taiwan" },
+              { code: "jp", label: "Japan" },
+              { code: "kr", label: "South Korea" },
+              { code: "hk", label: "Hong Kong" },
+              { code: "sg", label: "Singapore" },
+              { code: "cn", label: "China" },
+              { code: "th", label: "Thailand" },
+              { code: "us", label: "United States" },
+              { code: "gb", label: "United Kingdom" },
+              { code: "de", label: "Germany" },
+              { code: "fr", label: "France" },
+              { code: "au", label: "Australia" },
+              { code: "ae", label: "UAE" },
+            ].map(({ code, label }) => (
+              <button
+                key={code || "auto"}
+                type="button"
+                onClick={() => setSearchRegion(code)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  searchRegion === code
+                    ? "bg-sky-500 text-white shadow-sm"
+                    : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                {label}
+                {code && <span className="ml-1 opacity-50 uppercase">{code}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom row: search button */}
+      <div className="flex flex-wrap items-end gap-4">
 
         {/* Search button */}
         <button

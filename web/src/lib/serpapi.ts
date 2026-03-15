@@ -120,8 +120,10 @@ export async function searchFlights(params: {
   departureDate: string;
   returnDate?: string;
   adults?: number;
+  bags?: number;
   currency?: string;
   nonStop?: boolean;
+  gl?: string; // Google country code (e.g. "tw", "jp") – affects which routes are surfaced
 }): Promise<FlightOffer[]> {
   const currency = params.currency ?? "USD";
 
@@ -135,6 +137,7 @@ export async function searchFlights(params: {
     currency,
     type: params.returnDate ? "1" : "2", // 1=round trip, 2=one way
     sort_by: "2", // sort by price
+    gl: (params.gl ?? "us").toLowerCase(),
   });
 
   if (params.returnDate) {
@@ -142,6 +145,9 @@ export async function searchFlights(params: {
   }
   if (params.nonStop) {
     query.set("stops", "1"); // 1 = nonstop only
+  }
+  if (params.bags && params.bags > 0) {
+    query.set("bags", String(params.bags));
   }
 
   const res = await fetch(`${SEARCH_URL}?${query}`);
